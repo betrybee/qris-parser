@@ -11,9 +11,9 @@ Developed by [@betrybee](https://github.com/betrybee).
 - 💰 **Amount Parsing**: Formats embedded transaction amounts (IDR).
 - 🏦 **Acquirer Recognition**: Detects issuing bank/acquirer and business criteria (UMI, UKE, UME, URE, PSO).
 
-## 🚀 Local Setup
+## 🚀 Local Setup & Installation
 
-1. Clone this repository:
+1. Clone repository ini:
    ```bash
-   git clone [https://github.com/betrybee/qris-parser-app.git](https://github.com/betrybee/qris-parser-app.git)
-   cd qris-parser-app
+   git clone [https://github.com/betrybee/qris-parser.git](https://github.com/betrybee/qris-parser.git)
+   cd qris-parser
