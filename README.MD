@@ -17,3 +17,10 @@ Developed by [@betrybee](https://github.com/betrybee).
    ```bash
    git clone [https://github.com/betrybee/qris-parser.git](https://github.com/betrybee/qris-parser.git)
    cd qris-parser
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+3. run application:
+   ```bash
+   streamlit run app.py
