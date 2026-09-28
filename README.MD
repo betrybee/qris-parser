@@ -10,7 +10,8 @@ Developed by [@betrybee](https://github.com/betrybee).
 - 💳 **Smart Detection**: Detect Static vs Dynamic QRIS.
 - 💰 **Amount Parsing**: Formats embedded transaction amounts (IDR).
 - 🏦 **Acquirer Recognition**: Detects issuing bank/acquirer and business criteria (UMI, UKE, UME, URE, PSO).
-
+[Screenshot Aplikasi]
+(jpg.jpeg)
 ## 🚀 Local Setup & Installation
 
 1. Clone repository ini:
