@@ -15,7 +15,7 @@ Developed by [@betrybee](https://github.com/betrybee).
 
 1. Clone repository ini:
    ```bash
-   git clone [https://github.com/betrybee/qris-parser.git](https://github.com/betrybee/qris-parser.git)
+   git clone https://github.com/betrybee/qris-parser.git
    cd qris-parser
 
 2. Install dependencies:
