@@ -103,8 +103,8 @@ class QRISParser:
 # Streamlit App
 st.set_page_config(page_title="QRIS Parser Indonesia", page_icon="💳", layout="centered")
 
-st.title("🇮🇩 QRIS Image Parser")
-st.write("Upload foto/screenshot gambar QRIS untuk diekstrak dan diparse datanya.")
+st.title("QRIS Image Parser")
+st.write("Upload QRIS.")
 
 uploaded_file = st.file_uploader("Pilih Gambar QRIS (JPG, PNG, JPEG)", type=["jpg", "jpeg", "png"])
 
