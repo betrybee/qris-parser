@@ -1,4 +1,13 @@
-# Pemetaan Kode MCC Umum QRIS di Indonesia
+import streamlit as st
+from streamlit_gsheets import GSheetsConnection
+import pandas as pd
+import datetime
+from PIL import Image
+from pyzbar.pyzbar import decode
+
+st.set_page_config(page_title="QRIS Parser", page_icon="🔍", layout="centered")
+
+# Mapping Kode MCC (Merchant Category Code)
 MCC_MAP = {
     "5812": "Eating Places and Restaurants (Restoran / Tempat Makan)",
     "5814": "Fast Food Restaurants (Makanan Cepat Saji)",
@@ -29,14 +38,12 @@ def parse_qris_detail(payload):
     currency_code = parsed.get("53", "360")
     mcc_code = parsed.get("52", "Tidak Ditemukan")
     
-    # Keterangan MCC
     mcc_desc = MCC_MAP.get(mcc_code, f"{mcc_code} (Kategori Umum)")
 
     initiation_point = parsed.get("01", "")
     qr_type = "Dynamic (Sekali Pakai / Nominal Otomatis)" if initiation_point == "12" else "Static (Tetap)"
     transaction_amount = parsed.get("54", "Sesuai Input Pembayar")
 
-    # Ekstraksi NMID & Acquirer yang Presisi
     nmid = "Tidak Ditemukan"
     acquirer_info = "Tidak Ditemukan"
     
@@ -56,7 +63,6 @@ def parse_qris_detail(payload):
                 if sub_tag == "00":
                     acquirer_info = sub_val
                 elif sub_tag in ["01", "02", "03"]:
-                    # NMID QRIS Indonesia biasa diawali 'ID10...' atau 'ID11...'
                     if sub_val.startswith("ID") or len(sub_val) >= 13:
                         nmid = sub_val
                 j += 4 + sub_len
@@ -74,3 +80,82 @@ def parse_qris_detail(payload):
         "Kode Mata Uang": "IDR (360)" if currency_code == "360" else currency_code,
         "Payload Mentah": payload
     }
+
+# Koneksi Google Sheets
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+def load_data():
+    try:
+        data = conn.read(worksheet="Sheet1", ttl=0)
+        return data.dropna(how="all")
+    except Exception:
+        return pd.DataFrame(columns=["Timestamp", "Username", "Filename"])
+
+df_logs = load_data()
+total_counter = len(df_logs)
+
+st.title("🔍 QRIS Parser App")
+st.write("Aplikasi untuk mengekstrak dan membaca informasi detail dari gambar QRIS.")
+
+st.metric(label="📊 Total QRIS Diproses", value=f"{total_counter} Kali")
+st.divider()
+
+username = st.text_input("Username / Nama Pengguna", placeholder="Masukkan nama/username Anda...")
+uploaded_file = st.file_uploader("Unggah Gambar QRIS (JPG, PNG, JPEG)", type=["jpg", "jpeg", "png"])
+
+if st.button("Parse QRIS", type="primary"):
+    if not username.strip():
+        st.error("⚠️ Silakan isi Username Anda terlebih dahulu sebelum memproses.")
+    elif uploaded_file is None:
+        st.error("⚠️ Silakan unggah gambar QRIS terlebih dahulu.")
+    else:
+        with st.spinner("Membaca dan memproses QRIS..."):
+            try:
+                img = Image.open(uploaded_file)
+                decoded_objects = decode(img)
+                
+                if decoded_objects:
+                    raw_qr = decoded_objects[0].data.decode('utf-8')
+                    details = parse_qris_detail(raw_qr)
+                    
+                    st.success(f"✅ QRIS Berhasil Diproses untuk **{username}**!")
+                    
+                    col1, col2 = st.columns(2)
+                    col1.metric("🏪 Nama Merchant", details["Nama Merchant"])
+                    col2.metric("📍 Kota", details["Kota"])
+                    
+                    st.write("---")
+                    
+                    st.subheader("📋 Detail Informasi QRIS")
+                    
+                    detail_df = pd.DataFrame([
+                        {"Kategori": "NMID (National Merchant ID)", "Detail": details["NMID"]},
+                        {"Kategori": "Kode Pos", "Detail": details["Kode Pos"]},
+                        {"Kategori": "Penyelenggara / Acquirer", "Detail": details["Acquirer / Penyelenggara"]},
+                        {"Kategori": "Tipe QRIS", "Detail": details["Tipe QRIS"]},
+                        {"Kategori": "Nominal Transaksi", "Detail": details["Nominal Transaksi"]},
+                        {"Kategori": "Merchant Category Code (MCC)", "Detail": details["Kategori Usaha (MCC)"]},
+                        {"Kategori": "Negara / Mata Uang", "Detail": f"{details['Kode Negara']} / {details['Kode Mata Uang']}"}
+                    ])
+                    
+                    st.table(detail_df)
+                    
+                    with st.expander("📄 Lihat Raw Payload Mentah"):
+                        st.code(details["Payload Mentah"], language="text")
+                    
+                    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    new_log = pd.DataFrame([{
+                        "Timestamp": now,
+                        "Username": username.strip(),
+                        "Filename": uploaded_file.name
+                    }])
+                    
+                    updated_df = pd.concat([df_logs, new_log], ignore_index=True)
+                    conn.update(worksheet="Sheet1", data=updated_df)
+                    st.toast("Log berhasil dicatat!", icon="✅")
+                    
+                else:
+                    st.warning("❌ QR Code tidak terdeteksi pada gambar. Pastikan gambar QRIS terlihat jelas.")
+                    
+            except Exception as e:
+                st.error(f"Terjadi kesalahan saat memproses gambar: {e}")
