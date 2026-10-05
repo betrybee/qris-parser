@@ -2,18 +2,17 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import datetime
+from PIL import Image
+from pyzbar.pyzbar import decode
 
-# Configuration Page
 st.set_page_config(page_title="QRIS Parser", page_icon="🔍", layout="centered")
 
-# 1. Inisialisasi Koneksi ke Google Sheets
+# Inisialisasi koneksi Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 2. Fungsi untuk membaca data log dari Sheet1
 def load_data():
     try:
-        data = conn.read(worksheet="Sheet1", ttl=2)
-        # Hapus baris yang kosong jika ada
+        data = conn.read(worksheet="Sheet1", ttl=0)
         data = data.dropna(how="all")
         return data
     except Exception:
@@ -22,7 +21,6 @@ def load_data():
 df_logs = load_data()
 total_counter = len(df_logs)
 
-# 3. Tampilan Header & Counter
 st.title("🔍 QRIS Parser App")
 st.write("Aplikasi untuk mengekstrak dan membaca informasi detail dari gambar QRIS.")
 
@@ -31,11 +29,9 @@ st.metric(label="📊 Total QRIS Diproses", value=f"{total_counter} Kali")
 
 st.divider()
 
-# 4. Input Username & File
 username = st.text_input("Username / Nama Pengguna", placeholder="Masukkan nama/username Anda...")
 uploaded_file = st.file_uploader("Unggah Gambar QRIS (JPG, PNG, JPEG)", type=["jpg", "jpeg", "png"])
 
-# 5. Eksekusi Parsing & Pencatatan Log
 if st.button("Parse QRIS", type="primary"):
     if not username.strip():
         st.error("⚠️ Silakan isi Username Anda terlebih dahulu sebelum memproses.")
@@ -43,27 +39,33 @@ if st.button("Parse QRIS", type="primary"):
         st.error("⚠️ Silakan unggah gambar QRIS terlebih dahulu.")
     else:
         with st.spinner("Membaca dan memproses QRIS..."):
-            # ==========================================
-            # LOGIKA PARSING QRIS ANDA (pyzbar/Pillow)
-            # ==========================================
-            # (Masukkan kode ekstraksi pyzbar yang sudah Anda buat sebelumnya di sini)
-            
-            # --- CONTOH SIMULASI HASIL ---
-            # result = parse_qris_function(uploaded_file)
-            st.success(f"QRIS Berhasil Diproses untuk **{username}**!")
-            
-            # 6. Catat Log Baru ke Google Sheets
-            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            new_log = pd.DataFrame([{
-                "Timestamp": now,
-                "Username": username.strip(),
-                "Filename": uploaded_file.name
-            }])
-            
-            updated_df = pd.concat([df_logs, new_log], ignore_index=True)
-            
-            # Simpan pembaruan ke Google Sheets
-            conn.update(worksheet="Sheet1", data=updated_df)
-            
-            st.toast("Aktivitas Anda telah dicatat ke log!", icon="✅")
-            st.rerun()  # Refresh halaman agar counter langsung bertambah
+            try:
+                # 1. Dekode Gambar QRIS
+                img = Image.open(uploaded_file)
+                decoded_objects = decode(img)
+                
+                if decoded_objects:
+                    qr_data = decoded_objects[0].data.decode('utf-8')
+                    
+                    # Tampilkan Hasil Parsing QRIS ke Layar
+                    st.success(f"✅ QRIS Berhasil Diproses untuk **{username}**!")
+                    st.subheader("📌 Raw Payload QRIS:")
+                    st.code(qr_data, language="text")
+                    
+                    # 2. Simpan Log ke Google Sheets
+                    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    new_log = pd.DataFrame([{
+                        "Timestamp": now,
+                        "Username": username.strip(),
+                        "Filename": uploaded_file.name
+                    }])
+                    
+                    # Tambahkan data baru
+                    updated_df = pd.concat([df_logs, new_log], ignore_index=True)
+                    conn.update(worksheet="Sheet1", data=updated_df)
+                    st.toast("Log berhasil disimpan ke Google Sheets!", icon="✅")
+                else:
+                    st.warning("❌ QR Code tidak terdeteksi pada gambar. Pastikan gambar QRIS terlihat jelas.")
+                    
+            except Exception as e:
+                st.error(f"Terjadi kesalahan saat membaca gambar: {e}")
