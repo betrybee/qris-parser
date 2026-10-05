@@ -1,5 +1,5 @@
 streamlit
 pillow
 pyzbar
-streamlit-gsheets
+st-gsheets-connection
 pandas
